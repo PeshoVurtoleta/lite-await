@@ -6,7 +6,6 @@
 [![npm downloads](https://img.shields.io/npm/dm/@zakkster/lite-await?style=for-the-badge&color=blue)](https://www.npmjs.com/package/@zakkster/lite-await)
 [![npm total downloads](https://img.shields.io/npm/dt/@zakkster/lite-await?style=for-the-badge&color=blue)](https://www.npmjs.com/package/@zakkster/lite-await)
 [![lite-signal peer](https://img.shields.io/badge/peer-lite--signal-blue?style=for-the-badge)](https://github.com/PeshoVurtoleta/lite-signal)
-[![lite-observe peer](https://img.shields.io/badge/peer-lite--observe-blue?style=for-the-badge)](https://github.com/PeshoVurtoleta/lite-observe)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Types-informational)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
