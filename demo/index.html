@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@zakkster/lite-await -- oscilloscope demo</title>
+    <style>
+        /* ---------- design tokens (oklch with hex fallback) ---------- */
+        :root {
+            --bg: #050a05;
+            --bg: oklch(0.12 0.02 150);
+            --grid: #0a1a0a;
+            --grid: oklch(0.18 0.04 150);
+            --phosphor: #34ff7a;
+            --phosphor: oklch(0.85 0.22 150);
+            --phosphor-dim: #1c8a3f;
+            --phosphor-dim: oklch(0.55 0.18 150);
+            --phosphor-glow: #52ff95;
+            --phosphor-glow: oklch(0.92 0.20 150);
+            --warn: #ffcc44;
+            --warn: oklch(0.82 0.18 90);
+            --err: #ff5577;
+            --err: oklch(0.70 0.22 25);
+            --info: #66ccff;
+            --info: oklch(0.78 0.16 230);
+            --bg-panel: #081008;
+            --bg-panel: oklch(0.16 0.03 150);
+            --border: #1c4a26;
+            --border: oklch(0.35 0.10 150);
+
+            --font-mono: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg);
+            color: var(--phosphor);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            line-height: 1.5;
+            min-height: 100 dvh;
+        }
+
+        body {
+            background-image: repeating-linear-gradient(0deg, transparent 0 1.4rem, var(--grid) 1.4rem 1.45rem),
+            repeating-linear-gradient(90deg, transparent 0 1.4rem, var(--grid) 1.4rem 1.45rem);
+            padding: 1.5rem;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.8rem;
+            margin-bottom: 1rem;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--phosphor-glow);
+            text-shadow: 0 0 0.4rem var(--phosphor-dim);
+        }
+
+        header p {
+            margin: 0.3rem 0 0 0;
+            color: var(--phosphor-dim);
+            font-size: 0.8rem;
+        }
+
+        #tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+        }
+
+        #tabs button {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--phosphor-dim);
+            font-family: inherit;
+            font-size: 0.85rem;
+            padding: 0.5rem 0.9rem;
+            cursor: pointer;
+            transition: all 120ms ease;
+        }
+
+        @media (hover: hover) {
+            #tabs button:hover {
+                color: var(--phosphor);
+                border-color: var(--phosphor-dim);
+            }
+        }
+
+        #tabs button.active {
+            color: var(--phosphor-glow);
+            border-color: var(--phosphor);
+            background: var(--bg-panel);
+            text-shadow: 0 0 0.4rem var(--phosphor-dim);
+        }
+
+        .scene {
+            display: none;
+        }
+
+        .scene.active {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        @media (min-width: 60rem) {
+            .scene.active {
+                grid-template-columns: minmax(20rem, 1fr) minmax(18rem, 1fr);
+            }
+        }
+
+        .panel {
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            padding: 1rem;
+            overflow: hidden;
+        }
+
+        .panel h2 {
+            margin: 0 0 0.6rem 0;
+            font-size: 0.9rem;
+            color: var(--phosphor-glow);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.4rem;
+        }
+
+        .panel p {
+            margin: 0.3rem 0;
+            color: var(--phosphor-dim);
+            font-size: 0.8rem;
+        }
+
+        .panel p.dim {
+            color: var(--phosphor-dim);
+        }
+
+        .panel p.code {
+            color: var(--phosphor);
+            font-family: var(--font-mono);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 0.8rem 0;
+        }
+
+        .controls button {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--phosphor);
+            font-family: inherit;
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+            cursor: pointer;
+            transition: all 120ms ease;
+        }
+
+        @media (hover: hover) {
+            .controls button:hover:not(:disabled) {
+                border-color: var(--phosphor);
+                box-shadow: 0 0 0.5rem var(--phosphor-dim);
+            }
+        }
+
+        .controls button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .controls button.warn {
+            color: var(--warn);
+            border-color: var(--warn);
+        }
+
+        .controls button.err {
+            color: var(--err);
+            border-color: var(--err);
+        }
+
+        .log {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.7rem;
+            max-height: 14rem;
+            overflow-y: auto;
+            font-size: 0.75rem;
+            line-height: 1.6;
+        }
+
+        .log .row {
+            display: flex;
+            gap: 0.6rem;
+        }
+
+        .log .row .t {
+            color: var(--phosphor-dim);
+            flex-shrink: 0;
+            min-width: 5rem;
+        }
+
+        .log .row .m {
+            color: var(--phosphor);
+            flex: 1;
+        }
+
+        .log .row.warn .m {
+            color: var(--warn);
+        }
+
+        .log .row.err .m {
+            color: var(--err);
+        }
+
+        .log .row.info .m {
+            color: var(--info);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.4rem 1rem;
+            font-size: 0.8rem;
+            margin: 0.6rem 0;
+        }
+
+        .stats span.label {
+            color: var(--phosphor-dim);
+        }
+
+        .stats span.value {
+            color: var(--phosphor-glow);
+            text-align: right;
+        }
+
+        svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        svg .node {
+            fill: var(--bg);
+            stroke: var(--phosphor-dim);
+            stroke-width: 1.5;
+            transition: all 200ms ease;
+        }
+
+        svg .node.active {
+            fill: var(--phosphor-dim);
+            stroke: var(--phosphor);
+        }
+
+        svg .node.warn {
+            stroke: var(--warn);
+        }
+
+        svg .node.err {
+            stroke: var(--err);
+        }
+
+        svg .node-label {
+            fill: var(--phosphor);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-anchor: middle;
+        }
+
+        svg .node.active + .node-label {
+            fill: var(--phosphor-glow);
+        }
+
+        svg .edge {
+            stroke: var(--phosphor-dim);
+            stroke-width: 1.2;
+            fill: none;
+        }
+
+        svg .edge.active {
+            stroke: var(--phosphor-glow);
+            stroke-width: 2;
+        }
+
+        svg .edge-label {
+            fill: var(--phosphor-dim);
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+        }
+
+        footer {
+            margin-top: 2rem;
+            padding-top: 0.8rem;
+            border-top: 1px solid var(--border);
+            color: var(--phosphor-dim);
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
+        footer a {
+            color: var(--phosphor);
+            text-decoration: none;
+        }
+
+        @media (hover: hover) {
+            footer a:hover {
+                color: var(--phosphor-glow);
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>@zakkster/lite-await -- oscilloscope demo</h1>
+    <p>4 scenes covering whenSignal, allOf, anyOf, raceOf, withTimeout, fromPromise. Run via `npx serve .` from the
+        package root.</p>
+</header>
+
+<nav id="tabs">
+    <button data-scene="s1" class="active">1. whenSignal lifecycle</button>
+    <button data-scene="s2">2. Auth + Room (allOf)</button>
+    <button data-scene="s3">3. EBS race (raceOf)</button>
+    <button data-scene="s4">4. fromPromise + cleanup probe</button>
+</nav>
+
+<!-- =================================================================== -->
+<!-- Scene 1: whenSignal lifecycle                                       -->
+<!-- =================================================================== -->
+<section class="scene active" data-scene="s1">
+    <div class="panel">
+        <h2>Scene 1 -- whenSignal lifecycle</h2>
+        <p class="dim">Transition the source signal; whenSignal resolves on first predicate match. Try timeout, then
+            abort -- both clean up the effect.</p>
+
+        <svg viewBox="0 0 320 200">
+            <defs>
+                <marker id="arrowhead-s1" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0,0 6,3 0,6" fill="var(--phosphor-dim)"/>
+                </marker>
+            </defs>
+
+            <g class="state-node" data-state="loading">
+                <circle class="node" cx="60" cy="100" r="30"/>
+                <text class="node-label" x="60" y="104">loading</text>
+            </g>
+            <g class="state-node" data-state="ready">
+                <circle class="node" cx="260" cy="100" r="30"/>
+                <text class="node-label" x="260" y="104">ready</text>
+            </g>
+
+            <line class="edge" data-edge="loading->ready" x1="90" y1="100" x2="230" y2="100"
+                  marker-end="url(#arrowhead-s1)"/>
+            <text class="edge-label" x="160" y="92" text-anchor="middle">SET("ready")</text>
+
+            <text x="160" y="170" class="edge-label" text-anchor="middle">whenSignal(status, s =&gt; s === "ready")
+            </text>
+        </svg>
+
+        <div class="controls">
+            <button id="s1-set-loading">set "loading"</button>
+            <button id="s1-set-ready">set "ready"</button>
+            <button id="s1-await">await whenSignal(..)</button>
+            <button id="s1-await-timeout" class="warn">await (timeout 1s)</button>
+            <button id="s1-abort" class="err">abort current</button>
+        </div>
+
+        <div class="stats">
+            <span class="label">status</span> <span class="value" id="s1-status">loading</span>
+            <span class="label">awaits resolved</span> <span class="value" id="s1-resolved">0</span>
+            <span class="label">timeouts</span> <span class="value" id="s1-timeouts">0</span>
+            <span class="label">aborts</span> <span class="value" id="s1-aborts">0</span>
+            <span class="label">effects (lite-signal pool)</span> <span class="value" id="s1-effects">0</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Event log</h2>
+        <div class="log" id="s1-log"></div>
+    </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- Scene 2: allOf - auth + room joined + peers ready                   -->
+<!-- =================================================================== -->
+<section class="scene" data-scene="s2">
+    <div class="panel">
+        <h2>Scene 2 -- allOf: auth AND room AND peers</h2>
+        <p class="dim">The Twitch+Room handshake pattern. All three conditions must hold; any failure aborts the rest.
+            Watch the effects count: 3 in-flight, then 0.</p>
+
+        <svg viewBox="0 0 320 240">
+            <defs>
+                <marker id="arrowhead-s2" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0,0 6,3 0,6" fill="var(--phosphor-dim)"/>
+                </marker>
+            </defs>
+
+            <g class="state-node" data-state="auth">
+                <circle class="node" cx="60" cy="50" r="26"/>
+            </g>
+            <text class="node-label" x="60" y="54">auth</text>
+            <g class="state-node" data-state="room">
+                <circle class="node" cx="60" cy="120" r="26"/>
+            </g>
+            <text class="node-label" x="60" y="124">room</text>
+            <g class="state-node" data-state="peers">
+                <circle class="node" cx="60" cy="190" r="26"/>
+            </g>
+            <text class="node-label" x="60" y="194">peers</text>
+
+            <g class="state-node" data-state="all">
+                <circle class="node" cx="240" cy="120" r="34"/>
+            </g>
+            <text class="node-label" x="240" y="124">ALL OK</text>
+
+            <line class="edge" data-edge="auth->all" x1="86" y1="50" x2="208" y2="106" marker-end="url(#arrowhead-s2)"/>
+            <line class="edge" data-edge="room->all" x1="86" y1="120" x2="206" y2="120"
+                  marker-end="url(#arrowhead-s2)"/>
+            <line class="edge" data-edge="peers->all" x1="86" y1="190" x2="208" y2="134"
+                  marker-end="url(#arrowhead-s2)"/>
+        </svg>
+
+        <div class="controls">
+            <button id="s2-start">start allOf</button>
+            <button id="s2-auth">auth = true</button>
+            <button id="s2-room">room = "joined"</button>
+            <button id="s2-peers">peers = 2</button>
+            <button id="s2-fail" class="err">simulate fail (auth=null)</button>
+            <button id="s2-abort" class="err">abort</button>
+        </div>
+
+        <div class="stats">
+            <span class="label">auth</span> <span class="value" id="s2-v-auth">false</span>
+            <span class="label">room</span> <span class="value" id="s2-v-room">disconnected</span>
+            <span class="label">peers</span> <span class="value" id="s2-v-peers">0</span>
+            <span class="label">bundle status</span> <span class="value" id="s2-status">idle</span>
+            <span class="label">effects</span> <span class="value" id="s2-effects">0</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Event log</h2>
+        <div class="log" id="s2-log"></div>
+    </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- Scene 3: raceOf - EBS request/response/timeout                      -->
+<!-- =================================================================== -->
+<section class="scene" data-scene="s3">
+    <div class="panel">
+        <h2>Scene 3 -- raceOf: response vs error vs timeout</h2>
+        <p class="dim">The EBS / Twitch Bits transaction pattern. raceOf settles on the first signal to fire; whichever
+            path wins cancels the other two.</p>
+
+        <svg viewBox="0 0 320 220">
+            <defs>
+                <marker id="arrowhead-s3" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0,0 6,3 0,6" fill="var(--phosphor-dim)"/>
+                </marker>
+            </defs>
+
+            <g class="state-node" data-state="request">
+                <circle class="node" cx="160" cy="40" r="28"/>
+            </g>
+            <text class="node-label" x="160" y="44">REQUEST</text>
+
+            <g class="state-node" data-state="response">
+                <circle class="node" cx="60" cy="170" r="26"/>
+            </g>
+            <text class="node-label" x="60" y="174">response</text>
+            <g class="state-node" data-state="error">
+                <circle class="node" cx="160" cy="170" r="26"/>
+            </g>
+            <text class="node-label" x="160" y="174">error</text>
+            <g class="state-node" data-state="timeout">
+                <circle class="node" cx="260" cy="170" r="26"/>
+            </g>
+            <text class="node-label" x="260" y="174">timeout</text>
+
+            <line class="edge" data-edge="req->resp" x1="135" y1="60" x2="74" y2="148" marker-end="url(#arrowhead-s3)"/>
+            <line class="edge" data-edge="req->err" x1="160" y1="68" x2="160" y2="144" marker-end="url(#arrowhead-s3)"/>
+            <line class="edge" data-edge="req->to" x1="185" y1="60" x2="246" y2="148" marker-end="url(#arrowhead-s3)"/>
+        </svg>
+
+        <div class="controls">
+            <button id="s3-start">send request</button>
+            <button id="s3-resolve">arrive response</button>
+            <button id="s3-fail" class="err">arrive error</button>
+            <button id="s3-wait" class="warn">let timeout fire (3s)</button>
+        </div>
+
+        <div class="stats">
+            <span class="label">last winner</span> <span class="value" id="s3-winner">-</span>
+            <span class="label">requests sent</span> <span class="value" id="s3-sent">0</span>
+            <span class="label">resolved</span> <span class="value" id="s3-resolved">0</span>
+            <span class="label">errored</span> <span class="value" id="s3-errored">0</span>
+            <span class="label">timed out</span> <span class="value" id="s3-timeout">0</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Event log</h2>
+        <div class="log" id="s3-log"></div>
+    </div>
+</section>
+
+<!-- =================================================================== -->
+<!-- Scene 4: fromPromise + 1K-cycle cleanup probe                       -->
+<!-- =================================================================== -->
+<section class="scene" data-scene="s4">
+    <div class="panel">
+        <h2>Scene 4 -- fromPromise + cleanup probe</h2>
+        <p class="dim">fromPromise projects a Promise into a Signal&lt;AsyncState&gt;. Below: 1000-cycle
+            create+resolve+dispose stress test. Watch the effects count return to zero.</p>
+
+        <svg viewBox="0 0 320 160">
+            <defs>
+                <marker id="arrowhead-s4" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0,0 6,3 0,6" fill="var(--phosphor-dim)"/>
+                </marker>
+            </defs>
+
+            <g class="state-node" data-state="pending">
+                <circle class="node" cx="60" cy="80" r="30"/>
+            </g>
+            <text class="node-label" x="60" y="84">pending</text>
+            <g class="state-node" data-state="resolved">
+                <circle class="node" cx="260" cy="40" r="30"/>
+            </g>
+            <text class="node-label" x="260" y="44">resolved</text>
+            <g class="state-node" data-state="rejected">
+                <circle class="node" cx="260" cy="120" r="30"/>
+            </g>
+            <text class="node-label" x="260" y="124">rejected</text>
+
+            <line class="edge" data-edge="p->r" x1="86" y1="68" x2="230" y2="50" marker-end="url(#arrowhead-s4)"/>
+            <line class="edge" data-edge="p->e" x1="86" y1="92" x2="230" y2="110" marker-end="url(#arrowhead-s4)"/>
+        </svg>
+
+        <div class="controls">
+            <button id="s4-resolve">fromPromise(resolve)</button>
+            <button id="s4-reject" class="err">fromPromise(reject)</button>
+            <button id="s4-stress">run 1K cleanup cycles</button>
+        </div>
+
+        <div class="stats">
+            <span class="label">last status</span> <span class="value" id="s4-status">-</span>
+            <span class="label">last data</span> <span class="value" id="s4-data">-</span>
+            <span class="label">cycles completed</span> <span class="value" id="s4-cycles">0</span>
+            <span class="label">elapsed (ms)</span> <span class="value" id="s4-elapsed">0</span>
+            <span class="label">effects in pool</span> <span class="value" id="s4-effects">0</span>
+            <span class="label">signals in pool</span> <span class="value" id="s4-signals">0</span>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Event log</h2>
+        <div class="log" id="s4-log"></div>
+    </div>
+</section>
+
+<footer>
+    @zakkster/lite-await 1.0.0 -- MIT (c) 2026 Zahary Shinikchiev
+    -- <a href="https://github.com/PeshoVurtoleta/lite-await">github</a>
+    -- <a href="https://www.npmjs.com/package/@zakkster/lite-await">npm</a>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "@zakkster/lite-signal": "https://esm.sh/@zakkster/lite-signal@^1.2.0",
+    "@zakkster/lite-await": "../Await.js"
+  }
+}
+
+</script>
+
+<script type="module">
+    import {signal, effect, dispose, stats} from "@zakkster/lite-signal";
+    import {
+        whenSignal, allOf, anyOf, raceOf,
+        withTimeout, withAbort,
+        fromPromise, TimeoutError
+    } from "@zakkster/lite-await";
+
+    // =========================================================================
+    // Tab switching
+    // =========================================================================
+    const $tabs = document.querySelectorAll("#tabs button");
+    const $scenes = document.querySelectorAll(".scene");
+    const onTab = (ev) => {
+        const id = ev.currentTarget.dataset.scene;
+        $tabs.forEach((b) => b.classList.toggle("active", b.dataset.scene === id));
+        $scenes.forEach((s) => s.classList.toggle("active", s.dataset.scene === id));
+    };
+    $tabs.forEach((b) => b.addEventListener("click", onTab));
+
+    // =========================================================================
+    // Log helper (one per scene). Cached refs; no allocation per write.
+    // =========================================================================
+    function appendLog($log, kind, msg) {
+        const row = document.createElement("div");
+        row.className = "row " + (kind || "");
+        const t = new Date().toISOString().slice(11, 19);
+        row.innerHTML = `<span class="t">${t}</span><span class="m">${msg}</span>`;
+        $log.appendChild(row);
+        $log.scrollTop = $log.scrollHeight;
+        // Keep log bounded
+        while ($log.children.length > 100) $log.removeChild($log.firstChild);
+    }
+
+    // =========================================================================
+    // SCENE 1 -- whenSignal lifecycle
+    // =========================================================================
+    const s1Status = signal("loading");
+    const $s1Status = document.getElementById("s1-status");
+    const $s1Resolved = document.getElementById("s1-resolved");
+    const $s1Timeouts = document.getElementById("s1-timeouts");
+    const $s1Aborts = document.getElementById("s1-aborts");
+    const $s1Effects = document.getElementById("s1-effects");
+    const $s1Log = document.getElementById("s1-log");
+    const $s1NodeLoading = document.querySelector('[data-scene="s1"] [data-state="loading"] circle');
+    const $s1NodeReady = document.querySelector('[data-scene="s1"] [data-state="ready"] circle');
+    const $s1Edge = document.querySelector('[data-scene="s1"] [data-edge="loading->ready"]');
+
+    let s1Resolved = 0, s1Timeouts = 0, s1Aborts = 0;
+    let s1ActiveCtrl = null;
+
+    effect(() => {
+        const v = s1Status();
+        $s1Status.textContent = v;
+        $s1NodeLoading.classList.toggle("active", v === "loading");
+        $s1NodeReady.classList.toggle("active", v === "ready");
+        $s1Edge.classList.toggle("active", v === "ready");
+    });
+
+    setInterval(() => {
+        $s1Effects.textContent = stats().effects;
+    }, 200);
+
+    document.getElementById("s1-set-loading").addEventListener("click", () => {
+        s1Status.set("loading");
+        appendLog($s1Log, "", 'status -> "loading"');
+    });
+    document.getElementById("s1-set-ready").addEventListener("click", () => {
+        s1Status.set("ready");
+        appendLog($s1Log, "", 'status -> "ready"');
+    });
+    document.getElementById("s1-await").addEventListener("click", async () => {
+        appendLog($s1Log, "info", "await whenSignal(status, s => s === 'ready')");
+        s1ActiveCtrl = new AbortController();
+        try {
+            const v = await whenSignal(s1Status, (s) => s === "ready", {signal: s1ActiveCtrl.signal});
+            s1Resolved++;
+            $s1Resolved.textContent = s1Resolved;
+            appendLog($s1Log, "info", "resolved with value: " + JSON.stringify(v));
+        } catch (e) {
+            if (e.name === "AbortError") {
+                s1Aborts++;
+                $s1Aborts.textContent = s1Aborts;
+                appendLog($s1Log, "err", "aborted: " + e.message);
+            }
+        }
+    });
+    document.getElementById("s1-await-timeout").addEventListener("click", async () => {
+        appendLog($s1Log, "warn", "await whenSignal(..., { timeout: 1000 })");
+        s1ActiveCtrl = new AbortController();
+        try {
+            await whenSignal(s1Status, (s) => s === "ready", {signal: s1ActiveCtrl.signal, timeout: 1000});
+            s1Resolved++;
+            $s1Resolved.textContent = s1Resolved;
+            appendLog($s1Log, "info", "resolved before timeout");
+        } catch (e) {
+            if (e instanceof TimeoutError) {
+                s1Timeouts++;
+                $s1Timeouts.textContent = s1Timeouts;
+                appendLog($s1Log, "warn", "TimeoutError after " + e.timeout + "ms");
+            } else if (e.name === "AbortError") {
+                s1Aborts++;
+                $s1Aborts.textContent = s1Aborts;
+                appendLog($s1Log, "err", "aborted: " + e.message);
+            }
+        }
+    });
+    document.getElementById("s1-abort").addEventListener("click", () => {
+        if (s1ActiveCtrl) {
+            s1ActiveCtrl.abort();
+            appendLog($s1Log, "err", "abort() fired");
+            s1ActiveCtrl = null;
+        } else {
+            appendLog($s1Log, "warn", "no active await to abort");
+        }
+    });
+
+    // =========================================================================
+    // SCENE 2 -- allOf: auth + room + peers
+    // =========================================================================
+    const s2Auth = signal(false);
+    const s2Room = signal("disconnected");
+    const s2Peers = signal(0);
+    const $s2VAuth = document.getElementById("s2-v-auth");
+    const $s2VRoom = document.getElementById("s2-v-room");
+    const $s2VPeers = document.getElementById("s2-v-peers");
+    const $s2Status = document.getElementById("s2-status");
+    const $s2Effects = document.getElementById("s2-effects");
+    const $s2Log = document.getElementById("s2-log");
+    const $s2NodeAuth = document.querySelector('[data-scene="s2"] [data-state="auth"] circle');
+    const $s2NodeRoom = document.querySelector('[data-scene="s2"] [data-state="room"] circle');
+    const $s2NodePeers = document.querySelector('[data-scene="s2"] [data-state="peers"] circle');
+    const $s2NodeAll = document.querySelector('[data-scene="s2"] [data-state="all"] circle');
+    let s2ActiveCtrl = null;
+
+    effect(() => {
+        const a = s2Auth();
+        $s2VAuth.textContent = String(a);
+        $s2NodeAuth.classList.toggle("active", a === true);
+        const r = s2Room();
+        $s2VRoom.textContent = r;
+        $s2NodeRoom.classList.toggle("active", r === "joined");
+        const p = s2Peers();
+        $s2VPeers.textContent = String(p);
+        $s2NodePeers.classList.toggle("active", p >= 2);
+    });
+
+    setInterval(() => {
+        $s2Effects.textContent = stats().effects;
+    }, 200);
+
+    document.getElementById("s2-start").addEventListener("click", async () => {
+        if (s2ActiveCtrl) s2ActiveCtrl.abort();
+        s2ActiveCtrl = new AbortController();
+        $s2NodeAll.classList.remove("active", "warn", "err");
+        $s2Status.textContent = "pending";
+        appendLog($s2Log, "info", "allOf([auth, room, peers]) started, timeout 10s");
+        try {
+            const vals = await allOf([
+                [s2Auth, (v) => v === true],
+                [s2Room, (v) => v === "joined"],
+                [s2Peers, (v) => v >= 2]
+            ], {signal: s2ActiveCtrl.signal, timeout: 10000});
+            $s2Status.textContent = "resolved";
+            $s2NodeAll.classList.add("active");
+            appendLog($s2Log, "info", "all resolved: " + JSON.stringify(vals));
+        } catch (e) {
+            $s2Status.textContent = e.name === "TimeoutError" ? "timeout" : "aborted";
+            $s2NodeAll.classList.add(e.name === "TimeoutError" ? "warn" : "err");
+            appendLog($s2Log, "err", e.name + ": " + (e.message || ""));
+        }
+    });
+    document.getElementById("s2-auth").addEventListener("click", () => {
+        s2Auth.set(true);
+        appendLog($s2Log, "", "auth = true");
+    });
+    document.getElementById("s2-room").addEventListener("click", () => {
+        s2Room.set("joined");
+        appendLog($s2Log, "", 'room = "joined"');
+    });
+    document.getElementById("s2-peers").addEventListener("click", () => {
+        s2Peers.set(2);
+        appendLog($s2Log, "", "peers = 2");
+    });
+    document.getElementById("s2-fail").addEventListener("click", () => {
+        if (s2ActiveCtrl) {
+            s2ActiveCtrl.abort(new Error("auth handshake failed"));
+            appendLog($s2Log, "err", "simulated failure: aborted with reason");
+        }
+    });
+    document.getElementById("s2-abort").addEventListener("click", () => {
+        if (s2ActiveCtrl) {
+            s2ActiveCtrl.abort();
+            appendLog($s2Log, "err", "manual abort");
+        }
+    });
+
+    // =========================================================================
+    // SCENE 3 -- raceOf: response vs error vs timeout
+    // =========================================================================
+    const s3Response = signal(null);
+    const s3Error = signal(null);
+    const $s3Winner = document.getElementById("s3-winner");
+    const $s3Sent = document.getElementById("s3-sent");
+    const $s3Resolved = document.getElementById("s3-resolved");
+    const $s3Errored = document.getElementById("s3-errored");
+    const $s3Timeout = document.getElementById("s3-timeout");
+    const $s3Log = document.getElementById("s3-log");
+    const $s3NodeReq = document.querySelector('[data-scene="s3"] [data-state="request"] circle');
+    const $s3NodeResp = document.querySelector('[data-scene="s3"] [data-state="response"] circle');
+    const $s3NodeErr = document.querySelector('[data-scene="s3"] [data-state="error"] circle');
+    const $s3NodeTo = document.querySelector('[data-scene="s3"] [data-state="timeout"] circle');
+    let s3Sent = 0, s3Resolved = 0, s3Errored = 0, s3Timeout = 0;
+    let s3CurrentId = 0;
+
+    document.getElementById("s3-start").addEventListener("click", async () => {
+        s3Sent++;
+        $s3Sent.textContent = s3Sent;
+        const id = ++s3CurrentId;
+        s3Response.set(null);
+        s3Error.set(null);
+        $s3NodeReq.classList.add("active");
+        $s3NodeResp.classList.remove("active");
+        $s3NodeErr.classList.remove("active", "err");
+        $s3NodeTo.classList.remove("active", "warn");
+        appendLog($s3Log, "info", "request #" + id + " sent, racing response vs error vs timeout(3s)");
+
+        try {
+            const r = await raceOf([
+                [s3Response, (v) => v !== null && v.txid === id],
+                [s3Error, (v) => v !== null && v.txid === id]
+            ], {timeout: 3000});
+            $s3NodeReq.classList.remove("active");
+            if (r.index === 0) {
+                s3Resolved++;
+                $s3Resolved.textContent = s3Resolved;
+                $s3Winner.textContent = "response";
+                $s3NodeResp.classList.add("active");
+                appendLog($s3Log, "info", "#" + id + " response: " + JSON.stringify(r.value));
+            } else {
+                s3Errored++;
+                $s3Errored.textContent = s3Errored;
+                $s3Winner.textContent = "error";
+                $s3NodeErr.classList.add("active", "err");
+                appendLog($s3Log, "err", "#" + id + " error: " + JSON.stringify(r.value));
+            }
+        } catch (e) {
+            $s3NodeReq.classList.remove("active");
+            if (e instanceof TimeoutError) {
+                s3Timeout++;
+                $s3Timeout.textContent = s3Timeout;
+                $s3Winner.textContent = "timeout";
+                $s3NodeTo.classList.add("active", "warn");
+                appendLog($s3Log, "warn", "#" + id + " timed out after " + e.timeout + "ms");
+            } else {
+                appendLog($s3Log, "err", "#" + id + " unexpected: " + e.message);
+            }
+        }
+    });
+    document.getElementById("s3-resolve").addEventListener("click", () => {
+        s3Response.set({txid: s3CurrentId, value: "ok-" + s3CurrentId});
+        appendLog($s3Log, "", "response signal set for #" + s3CurrentId);
+    });
+    document.getElementById("s3-fail").addEventListener("click", () => {
+        s3Error.set({txid: s3CurrentId, code: "EBS_REJECT"});
+        appendLog($s3Log, "", "error signal set for #" + s3CurrentId);
+    });
+    document.getElementById("s3-wait").addEventListener("click", () => {
+        appendLog($s3Log, "warn", "doing nothing -- wait for the 3s timeout");
+    });
+
+    // =========================================================================
+    // SCENE 4 -- fromPromise + 1K cleanup probe
+    // =========================================================================
+    const $s4Status = document.getElementById("s4-status");
+    const $s4Data = document.getElementById("s4-data");
+    const $s4Cycles = document.getElementById("s4-cycles");
+    const $s4Elapsed = document.getElementById("s4-elapsed");
+    const $s4Effects = document.getElementById("s4-effects");
+    const $s4Signals = document.getElementById("s4-signals");
+    const $s4Log = document.getElementById("s4-log");
+    const $s4NodePending = document.querySelector('[data-scene="s4"] [data-state="pending"] circle');
+    const $s4NodeResolved = document.querySelector('[data-scene="s4"] [data-state="resolved"] circle');
+    const $s4NodeRejected = document.querySelector('[data-scene="s4"] [data-state="rejected"] circle');
+
+    setInterval(() => {
+        const st = stats();
+        $s4Effects.textContent = st.effects;
+        $s4Signals.textContent = st.signals;
+    }, 200);
+
+    document.getElementById("s4-resolve").addEventListener("click", async () => {
+        appendLog($s4Log, "info", "fromPromise(Promise.resolve('hello'))");
+        const sig = fromPromise(new Promise((r) => setTimeout(() => r("hello"), 300)), "...");
+        $s4NodePending.classList.add("active");
+        $s4NodeResolved.classList.remove("active");
+        $s4NodeRejected.classList.remove("active");
+        const stop = effect(() => {
+            const s = sig();
+            $s4Status.textContent = s.status;
+            $s4Data.textContent = JSON.stringify(s.data);
+            if (s.status === "resolved") {
+                $s4NodePending.classList.remove("active");
+                $s4NodeResolved.classList.add("active");
+                appendLog($s4Log, "info", "settled: resolved with " + JSON.stringify(s.data));
+            }
+        });
+        setTimeout(() => {
+            stop();
+            dispose(sig);
+        }, 500);
+    });
+    document.getElementById("s4-reject").addEventListener("click", async () => {
+        appendLog($s4Log, "err", "fromPromise(Promise.reject(new Error('boom')))");
+        const p = new Promise((_, rej) => setTimeout(() => rej(new Error("boom")), 300));
+        p.catch(() => {
+        });  // silence node warning
+        const sig = fromPromise(p, "fallback");
+        $s4NodePending.classList.add("active");
+        $s4NodeResolved.classList.remove("active");
+        $s4NodeRejected.classList.remove("active");
+        const stop = effect(() => {
+            const s = sig();
+            $s4Status.textContent = s.status;
+            $s4Data.textContent = JSON.stringify(s.data);
+            if (s.status === "rejected") {
+                $s4NodePending.classList.remove("active");
+                $s4NodeRejected.classList.add("active");
+                appendLog($s4Log, "err", "settled: rejected with " + s.error.message);
+            }
+        });
+        setTimeout(() => {
+            stop();
+            dispose(sig);
+        }, 500);
+    });
+    document.getElementById("s4-stress").addEventListener("click", async () => {
+        appendLog($s4Log, "info", "running 1000 whenSignal create+resolve+dispose cycles");
+        const start = performance.now();
+        let cycles = 0;
+        for (let i = 0; i < 1000; i++) {
+            const s = signal(0);
+            const p = whenSignal(s, (n) => n === 1);
+            s.set(1);
+            await p;
+            dispose(s);
+            cycles = i + 1;
+            if ((i & 127) === 0) {  // update display every 128 cycles
+                $s4Cycles.textContent = cycles;
+                $s4Elapsed.textContent = (performance.now() - start).toFixed(1);
+            }
+        }
+        const elapsed = performance.now() - start;
+        $s4Cycles.textContent = cycles;
+        $s4Elapsed.textContent = elapsed.toFixed(1);
+        appendLog($s4Log, "info", "1000 cycles in " + elapsed.toFixed(1) + "ms (" + (1000 / (elapsed / 1000)).toFixed(0) + " ops/s)");
+        appendLog($s4Log, "info", "pool after: " + JSON.stringify(stats()));
+    });
+</script>
+</body>
+</html>
