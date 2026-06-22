@@ -1,11 +1,16 @@
 # @zakkster/lite-await
 
-[![npm version](https://img.shields.io/npm/v/@zakkster/lite-await.svg)](https://www.npmjs.com/package/@zakkster/lite-await)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/@zakkster/lite-await)](https://bundlephobia.com/package/@zakkster/lite-await)
-[![license: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
-[![zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#)
+[![npm version](https://img.shields.io/npm/v/@zakkster/lite-await.svg?style=for-the-badge&color=latest)](https://www.npmjs.com/package/@zakkster/lite-await)
+[![sponsor](https://img.shields.io/badge/sponsor-PeshoVurtoleta-ea4aaa.svg?logo=github)](https://github.com/sponsors/PeshoVurtoleta)
+[![npm bundle size](https://img.shields.io/bundlephobia/minzip/@zakkster/lite-await?style=for-the-badge)](https://bundlephobia.com/result?p=@zakkster/lite-await)
+[![npm downloads](https://img.shields.io/npm/dm/@zakkster/lite-await?style=for-the-badge&color=blue)](https://www.npmjs.com/package/@zakkster/lite-await)
+[![npm total downloads](https://img.shields.io/npm/dt/@zakkster/lite-await?style=for-the-badge&color=blue)](https://www.npmjs.com/package/@zakkster/lite-await)
+[![lite-signal peer](https://img.shields.io/badge/peer-lite--signal-blue?style=for-the-badge)](https://github.com/PeshoVurtoleta/lite-signal)
+[![lite-observe peer](https://img.shields.io/badge/peer-lite--observe-blue?style=for-the-badge)](https://github.com/PeshoVurtoleta/lite-observe)
+![TypeScript](https://img.shields.io/badge/TypeScript-Types-informational)
+![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![ESM only](https://img.shields.io/badge/module-ESM-blue.svg)](#)
-[![Node >=18](https://img.shields.io/badge/node-%3E%3D18-blue.svg)](#)
 
 > Zero-GC bridge between [`@zakkster/lite-signal`](https://www.npmjs.com/package/@zakkster/lite-signal) and the `async`/`await` world. Wait for signal values. Race multi-source predicates. AbortSignal-first cancellation. Bidirectional promise<->signal conversion. The missing async-coordination primitive for the lite-signal ecosystem.
 
