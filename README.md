@@ -7,6 +7,7 @@
 [![npm total downloads](https://img.shields.io/npm/dt/@zakkster/lite-await?style=for-the-badge&color=blue)](https://www.npmjs.com/package/@zakkster/lite-await)
 [![lite-signal peer](https://img.shields.io/badge/peer-lite--signal-blue?style=for-the-badge)](https://github.com/PeshoVurtoleta/lite-signal)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Types-informational)
+![Tree-Shakeable](https://img.shields.io/badge/tree--shakeable-yes-brightgreen)
 ![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![ESM only](https://img.shields.io/badge/module-ESM-blue.svg)](#)
@@ -411,6 +412,7 @@ The GC suite (`test/10-gc.test.mjs`) asserts retained-heap budgets under `--expo
 `@zakkster/lite-await` is the async-coordination layer of the `@zakkster/lite-*` ecosystem:
 
 - [`@zakkster/lite-signal`](https://www.npmjs.com/package/@zakkster/lite-signal) -- the reactive core (peer dep).
+- [`@zakkster/lite-stream`](https://www.npmjs.com/package/@zakkster/lite-stream) -- the AsyncIterable-boundary sibling of this package. `lite-await` owns the Promise boundary (one-shot: `whenSignal`, `fromPromise`); `lite-stream` owns the AsyncIterable boundary (multi-shot: `toAsyncIterable`, `fromAsyncIterable`, `pipeToSignal`). Reach for it when you need bounded queues, drop-oldest overflow, or `for await` consumers.
 - [`@zakkster/lite-statechart`](https://www.npmjs.com/package/@zakkster/lite-statechart) -- the FSM that pairs with `whenStatechart`.
 - [`@zakkster/lite-clock`](https://www.npmjs.com/package/@zakkster/lite-clock) -- deterministic time pool; `attachRAF` complements `lite-await` for frame-by-frame work.
 - [`@zakkster/lite-room`](https://www.npmjs.com/package/@zakkster/lite-room) -- the CRDT room; `lite-await` provides its `ready()` and `waitForPeers()` shape.

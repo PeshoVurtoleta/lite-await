@@ -149,6 +149,10 @@ scenario. 4096-cycle leak probe in test/09-cleanup-leak.test.mjs.
 - DO NOT use lite-await inside per-frame render loops. It is for one-shot
   async coordination at lifecycle boundaries. For per-frame work use signals
   + effect().
+- DO NOT reach for lite-await for multi-shot streams, async iterables, or
+  ongoing event ingestion. That is @zakkster/lite-stream's job (toAsyncIterable,
+  fromAsyncIterable, pipeToSignal). lite-await owns the Promise boundary;
+  lite-stream owns the AsyncIterable boundary.
 - DO NOT expect withTimeout / withAbort to cancel arbitrary inner work. They
   cannot; the inner Promise has no AbortSignal awareness. Pass the signal /
   timeout DIRECTLY to the primitive that creates the inner work.

@@ -1,6 +1,6 @@
 {
   "name": "@zakkster/lite-await",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Zero-GC bridge between @zakkster/lite-signal and Promise/async-await. Wait for signal values, race multi-source predicates, AbortSignal-first cancellation, bidirectional promise<->signal conversion. The missing async-coordination primitive for the lite-signal ecosystem.",
   "author": "Zahary Shinikchiev <shinikchiev@yahoo.com>",
   "license": "MIT",

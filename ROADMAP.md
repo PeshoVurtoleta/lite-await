@@ -46,24 +46,26 @@ Equivalent to `Promise.all` with a semaphore.
 
 **Status:** sketched, deferred.
 
-### `fromAsyncIterable(iter, opts?)` -- bridge async generators -> signal
-**Trigger:** lite-rollback's incoming frame buffer, lite-twitch-ebs's SSE
-stream. Each yielded value becomes the new signal value; the signal also
-tracks `{ done, error }`. Shape sketch:
+### AsyncIterable bridge -- lives in `@zakkster/lite-stream`, not here
 
-```js
-const frameSig = fromAsyncIterable(networkFrames(), { initial: null });
-effect(() => {
-    const frame = frameSig().value;
-    if (frame !== null) applyFrame(frame);
-});
-```
+Earlier drafts of this ROADMAP sketched `fromAsyncIterable(iter, opts?)` and
+`toAsyncIterable(source, opts?)` as candidates for lite-await. Both are
+already shipped in `@zakkster/lite-stream@1.0.0`, whose stated role is "the
+multi-shot dual of lite-await's fromPromise."
 
-Backpressure question: drop-on-overflow vs. ring-buffer-with-latest vs.
-strict-consume. The right default depends on the consumer. Likely the answer
-is "configurable, default to latest-wins."
+The package boundary is deliberate:
+- `lite-await` owns the **Promise boundary**: one-shot resolution, timeout
+  handling, and the combinators `allOf` / `anyOf` / `raceOf`. Its shape is
+  `Signal -> Promise` (`whenSignal`) and `Promise -> Signal` (`fromPromise`).
+- `lite-stream` owns the **AsyncIterable boundary**: multi-shot data
+  pipelines, backpressure, and ongoing event ingestion. Its shape is
+  `Signal -> AsyncIterable` (`toAsyncIterable`) and `AsyncIterable -> Signal`
+  (`fromAsyncIterable`, `pipeToSignal`).
 
-**Status:** sketched, deferred -- needs the consumer decision on backpressure.
+Keeping the packages tightly scoped prevents utility drift. Feature requests
+for richer async-iterable bridging (filter, timeout, latest-wins default,
+`Symbol.asyncDispose`, spec-compliant multi-waiter queue) should land in
+lite-stream, not here.
 
 ### `whenObservable(observable, opts?)` -- bridge from RxJS et al.
 **Trigger:** users mixing lite-signal with existing RxJS code in
@@ -112,9 +114,10 @@ architecturally awkward.
 
 - Cache management. That's `@zakkster/lite-query`.
 - Schedulers / priorities. That's `@zakkster/lite-clock`.
-- A full observable / stream abstraction. Departs from the "lite"
-  philosophy; the right home is a separate package with a clearly different
-  scope.
+- A full observable / stream abstraction, or any AsyncIterable bridge.
+  That's `@zakkster/lite-stream`. lite-await owns the Promise boundary
+  (one-shot); lite-stream owns the AsyncIterable boundary (multi-shot).
+  See the "AsyncIterable bridge" note above.
 - DOM-specific helpers (debounce, throttle, requestIdleCallback wrappers).
   Those are platform concerns and don't belong in an async-coordination
   primitive.
